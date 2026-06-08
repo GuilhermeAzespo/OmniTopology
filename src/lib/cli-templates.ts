@@ -238,13 +238,54 @@ tmpfs           7.7G     0  7.7G   0% /dev/shm`,
   },
 };
 
+export const WINDOWS_CLI: CliTemplate = {
+  welcome: `
+Microsoft Windows [Version 10.0.20348.169]
+(c) Microsoft Corporation. All rights reserved.
+`,
+  prompt: ">",
+  commands: {
+    help: () => `
+For more information on a specific command, type HELP command-name
+  IPCONFIG       Displays all current TCP/IP network configuration values.
+  PING           Verifies IP-level connectivity to another TCP/IP computer.
+  ROUTE          Manipulates network routing tables.
+  SYSTEMINFO     Displays machine specific properties and configuration.`,
+    ipconfig: (_, d) => {
+      const ifaces = d?.interfaces || [];
+      let out = "\nWindows IP Configuration\n\n";
+      ifaces.forEach((i: any) => {
+        out += `Ethernet adapter ${i.name}:\n\n`;
+        out += `   Connection-specific DNS Suffix  . : localdomain\n`;
+        if (i.ip) {
+          out += `   IPv4 Address. . . . . . . . . . . : ${i.ip.split('/')[0]}\n`;
+          out += `   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n`;
+          out += `   Default Gateway . . . . . . . . . : \n`;
+        } else {
+          out += `   Media State . . . . . . . . . . . : Media disconnected\n`;
+        }
+        out += `\n`;
+      });
+      return out;
+    },
+    systeminfo: (_, d) => `
+Host Name:                 ${(d?.hostname || "WINDOWS-PC").toUpperCase()}
+OS Name:                   Microsoft Windows Server 2022 Datacenter
+OS Version:                10.0.20348 N/A Build 20348
+OS Manufacturer:           Microsoft Corporation
+OS Configuration:          Standalone Server
+System Type:               x64-based PC
+Total Physical Memory:     4,096 MB`,
+  },
+};
+
 export const CLI_VENDORS: Record<string, CliTemplate> = {
   cisco: CISCO_CLI,
   mikrotik: MIKROTIK_CLI,
   pfsense: PFSENSE_CLI,
   opnsense: PFSENSE_CLI,
   linux: LINUX_CLI,
-  windows: LINUX_CLI, // fallback
+  windows: WINDOWS_CLI,
   generic: LINUX_CLI,
   aruba: CISCO_CLI, // fallback
   ubiquiti: LINUX_CLI, // fallback
