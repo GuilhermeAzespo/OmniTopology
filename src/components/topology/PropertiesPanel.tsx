@@ -105,10 +105,18 @@ export default function PropertiesPanel({ node, onUpdate, readonly }: Properties
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
               </select>
             </div>
-            <div className="form-group">
-              <label className="form-label">VLANs</label>
-              <input className="form-input" value={data.vlans || ""} onChange={e => updateField("vlans", e.target.value)} disabled={readonly} placeholder="10,20,30" />
-            </div>
+            
+            {(data.category === "server" || data.category === "router" || data.category === "firewall") && (
+              <div className="form-group" style={{ marginTop: "0.5rem", padding: "0.75rem", background: "var(--bg-elevated)", borderRadius: 8, border: "1px solid var(--border)" }}>
+                <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", margin: 0 }}>
+                  <input type="checkbox" checked={data.dhcpServer || false} onChange={e => updateField("dhcpServer", e.target.checked)} disabled={readonly} />
+                  Ativar Servidor DHCP
+                </label>
+                {data.dhcpServer && (
+                  <input className="form-input" style={{ marginTop: "0.5rem" }} value={data.dhcpNetwork || ""} onChange={e => updateField("dhcpNetwork", e.target.value)} disabled={readonly} placeholder="Rede (ex: 192.168.10.0/24)" />
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -119,13 +127,24 @@ export default function PropertiesPanel({ node, onUpdate, readonly }: Properties
                 <div style={{ fontSize: "0.7rem", color: "var(--primary)", fontWeight: 600, marginBottom: "0.4rem", fontFamily: "monospace" }}>{iface.name || `Interface ${idx + 1}`}</div>
                 <div className="flex flex-col gap-2">
                   <input className="form-input" style={{ fontSize: "0.75rem" }} value={iface.name || ""} onChange={e => updateInterface(idx, "name", e.target.value)} disabled={readonly} placeholder="eth0 / ether1 / Gi0/0" />
-                  <input className="form-input" style={{ fontSize: "0.75rem" }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="192.168.1.1/24" />
+                  
+                  {data.category === "switch" ? (
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      <select className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.mode || "access"} onChange={e => updateInterface(idx, "mode", e.target.value)} disabled={readonly}>
+                        <option value="access">Access</option>
+                        <option value="trunk">Trunk</option>
+                      </select>
+                      <input className="form-input" style={{ fontSize: "0.75rem", flex: 2 }} value={iface.vlan || ""} onChange={e => updateInterface(idx, "vlan", e.target.value)} disabled={readonly} placeholder={iface.mode === "trunk" ? "Allowed (ex: 10,20)" : "VLAN ID"} />
+                    </div>
+                  ) : (
+                    <input className="form-input" style={{ fontSize: "0.75rem" }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="IP (ex: 192.168.1.1/24)" />
+                  )}
                 </div>
               </div>
             ))}
             {!readonly && (
               <button className="btn btn-secondary btn-sm" style={{ width: "100%" }}
-                onClick={() => updateField("interfaces", [...(data.interfaces || []), { name: "", ip: "" }])}>
+                onClick={() => updateField("interfaces", [...(data.interfaces || []), { name: "", ip: "", mode: "access", vlan: "1" }])}>
                 + Interface
               </button>
             )}
