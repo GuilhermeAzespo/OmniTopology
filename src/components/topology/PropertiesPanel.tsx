@@ -1,20 +1,23 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Node } from "reactflow";
+import { Node, Edge } from "reactflow";
 import { CLI_VENDORS } from "@/lib/cli-templates";
+import { simulateDHCP } from "@/lib/network-simulator";
 
 const STATUS_OPTIONS = ["active", "inactive", "maintenance", "unknown"];
 const STATUS_LABELS: Record<string, string> = { active: "Ativo", inactive: "Inativo", maintenance: "Manutenção", unknown: "Desconhecido" };
 
 interface PropertiesPanelProps {
   node: Node | null;
+  nodes?: Node[];
+  edges?: Edge[];
   onUpdate: (nodeId: string, data: any) => void;
   readonly?: boolean;
 }
 
 type Tab = "info" | "interfaces" | "terminal" | "notes";
 
-export default function PropertiesPanel({ node, onUpdate, readonly }: PropertiesPanelProps) {
+export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate, readonly }: PropertiesPanelProps) {
   const [tab, setTab] = useState<Tab>("info");
   const [data, setData] = useState<any>({});
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
@@ -127,7 +130,6 @@ export default function PropertiesPanel({ node, onUpdate, readonly }: Properties
                 <div style={{ fontSize: "0.7rem", color: "var(--primary)", fontWeight: 600, marginBottom: "0.4rem", fontFamily: "monospace" }}>{iface.name || `Interface ${idx + 1}`}</div>
                 <div className="flex flex-col gap-2">
                   <input className="form-input" style={{ fontSize: "0.75rem" }} value={iface.name || ""} onChange={e => updateInterface(idx, "name", e.target.value)} disabled={readonly} placeholder="eth0 / ether1 / Gi0/0" />
-                  
                   {data.category === "switch" ? (
                     <div style={{ display: "flex", gap: "0.4rem" }}>
                       <select className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.mode || "access"} onChange={e => updateInterface(idx, "mode", e.target.value)} disabled={readonly}>
@@ -137,14 +139,34 @@ export default function PropertiesPanel({ node, onUpdate, readonly }: Properties
                       <input className="form-input" style={{ fontSize: "0.75rem", flex: 2 }} value={iface.vlan || ""} onChange={e => updateInterface(idx, "vlan", e.target.value)} disabled={readonly} placeholder={iface.mode === "trunk" ? "Allowed (ex: 10,20)" : "VLAN ID"} />
                     </div>
                   ) : (
-                    <input className="form-input" style={{ fontSize: "0.75rem" }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="IP (ex: 192.168.1.1/24)" />
+                    <div style={{ display: "flex", gap: "0.4rem" }}>
+                      <input className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="IP (ex: 192.168.1.1/24)" />
+                      {!readonly && !iface.ip && (
+                        <button 
+                          className="btn btn-secondary btn-sm" 
+                          style={{ padding: "0 0.5rem", fontSize: "0.65rem", flexShrink: 0 }}
+                          onClick={() => {
+                            if (!node) return;
+                            const ip = simulateDHCP(node, nodes, edges);
+                            if (ip) updateInterface(idx, "ip", ip);
+                            else alert("Nenhum servidor DHCP encontrado nesta rede.");
+                          }}
+                        >
+                          DHCP
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             ))}
             {!readonly && (
               <button className="btn btn-secondary btn-sm" style={{ width: "100%" }}
-                onClick={() => updateField("interfaces", [...(data.interfaces || []), { name: "", ip: "", mode: "access", vlan: "1" }])}>
+                onClick={() => {
+                  const len = data.interfaces?.length || 0;
+                  const newName = data.category === "switch" ? `port${len + 1}` : `eth${len}`;
+                  updateField("interfaces", [...(data.interfaces || []), { name: newName, ip: "", mode: "access", vlan: "1" }]);
+                }}>
                 + Interface
               </button>
             )}
