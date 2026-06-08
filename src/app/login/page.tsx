@@ -83,13 +83,15 @@ function LoginForm() {
               style={{ padding: "0.7rem", fontSize: "0.9rem", marginTop: "0.5rem" }}>
               {loading ? <><span className="spinner" style={{ borderColor: "rgba(0,0,0,0.2)", borderTopColor: "#000" }} />Entrando...</> : "Entrar"}
             </button>
-            <p className="text-sm text-center mt-2">
-              <span className="text-muted">Não possui uma conta? </span>
-              <Link href="/register" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>
-                Registre sua empresa
-              </Link>
-            </p>
           </form>
+          
+          <div className="text-sm text-center mt-4">
+            <span className="text-muted">Não possui uma conta? </span>
+            <Link href="/register" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 500, cursor: "pointer", display: "inline-block", padding: "0.5rem" }}>
+              Registre sua empresa
+            </Link>
+          </div>
+          
           <p className="text-xs text-muted" style={{ textAlign: "center", marginTop: "1.5rem" }}>
             OmniTopology v1.0 · Acesso restrito a usuários autorizados
           </p>
