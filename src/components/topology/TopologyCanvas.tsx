@@ -6,6 +6,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import DeviceNode from "./DeviceNode";
+import PropertiesPanel from "./PropertiesPanel";
 import { DEVICE_LIBRARY, LINK_TYPES } from "@/lib/devices";
 import type { DeviceDefinition } from "@/lib/devices";
 import { simulatePing } from "@/lib/network-simulator";
@@ -30,6 +31,7 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
   const [saving, setSaving] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
   const [selectedSourcePort, setSelectedSourcePort] = useState<string>("");
@@ -119,8 +121,18 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
     setNodes(nds => nds.concat(newNode));
   }, [reactFlowInstance]);
 
-  const onNodeClick = useCallback((_: any, node: Node) => { onSelectNode(node); }, [onSelectNode]);
-  const onPaneClick = useCallback(() => { onSelectNode(null); }, [onSelectNode]);
+  const onNodeClick = useCallback((_: any, node: Node) => { 
+    setSelectedNodeId(node.id);
+    onSelectNode(node); 
+  }, [onSelectNode]);
+  const onPaneClick = useCallback(() => { 
+    setSelectedNodeId(null);
+    onSelectNode(null); 
+  }, [onSelectNode]);
+
+  const handleNodeDataUpdate = useCallback((nodeId: string, data: any) => {
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data } : n));
+  }, [setNodes]);
 
   async function handleSave() {
     setSaving(true);
@@ -131,7 +143,8 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
   const selectedLinkType = LINK_TYPES.find(l => l.id === selectedEdgeType);
 
   return (
-    <div ref={reactFlowWrapper} style={{ width: "100%", height: "100%" }}>
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+    <div ref={reactFlowWrapper} style={{ flex: 1, height: "100%", position: "relative" }}>
       <ReactFlow
         nodes={nodes} edges={edges}
         onNodesChange={readonly ? undefined : onNodesChange}
@@ -257,6 +270,14 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
           </div>
         </div>
       )}
+    </div>
+    <PropertiesPanel 
+      node={nodes.find(n => n.id === selectedNodeId) || null} 
+      nodes={nodes} 
+      edges={edges} 
+      onUpdate={handleNodeDataUpdate} 
+      readonly={readonly} 
+    />
     </div>
   );
 }
