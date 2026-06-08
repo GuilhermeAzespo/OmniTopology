@@ -55,7 +55,7 @@ function DeviceNode({ data, selected }: NodeProps) {
 
   return (
     <div className={`device-node ${selected ? "selected" : ""}`} style={{ borderColor: selected ? data.color || "var(--primary)" : undefined }}>
-      <Handle type="target" position={Position.Top} style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
+      <Handle type="target" position={Position.Top} id="top" style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
       <div className="device-node-header">
         <div className="device-node-icon" style={{ background: `${data.color || "#06b6d4"}20`, color: data.color || "var(--primary)" }}>
           {icon}
@@ -71,7 +71,7 @@ function DeviceNode({ data, selected }: NodeProps) {
           {data.hostname}
         </div>
       )}
-      <Handle type="source" position={Position.Bottom} style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
+      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
       <Handle type="source" position={Position.Left} id="left" style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
       <Handle type="target" position={Position.Right} id="right" style={{ background: data.color || "var(--primary)", width: 8, height: 8, border: "2px solid var(--bg-primary)" }} />
     </div>
