@@ -85,11 +85,11 @@ function LoginForm() {
             </button>
           </form>
           
-          <div className="text-sm text-center mt-4">
+          <div className="text-sm text-center mt-6">
             <span className="text-muted">Não possui uma conta? </span>
-            <Link href="/register" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 500, cursor: "pointer", display: "inline-block", padding: "0.5rem" }}>
+            <a href="/register" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 500, cursor: "pointer", display: "inline-block", padding: "0.5rem" }}>
               Registre sua empresa
-            </Link>
+            </a>
           </div>
           
           <p className="text-xs text-muted" style={{ textAlign: "center", marginTop: "1.5rem" }}>
