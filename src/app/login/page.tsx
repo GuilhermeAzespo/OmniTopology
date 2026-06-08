@@ -1,14 +1,24 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("registered") === "true") {
+      setSuccess("Conta criada com sucesso! Faça login para continuar.");
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,6 +66,7 @@ export default function LoginPage() {
           </div>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "0.25rem" }}>Entrar na plataforma</h2>
           <p className="text-secondary text-sm" style={{ marginBottom: "1.5rem" }}>Acesse sua conta para gerenciar topologias</p>
+          {success && <div className="alert alert-success" style={{ backgroundColor: "rgba(16, 185, 129, 0.1)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.2)", padding: "0.75rem", borderRadius: "8px", marginBottom: "1rem", fontSize: "0.9rem" }}>{success}</div>}
           {error && <div className="alert alert-error">{error}</div>}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="form-group">
@@ -72,6 +83,12 @@ export default function LoginPage() {
               style={{ padding: "0.7rem", fontSize: "0.9rem", marginTop: "0.5rem" }}>
               {loading ? <><span className="spinner" style={{ borderColor: "rgba(0,0,0,0.2)", borderTopColor: "#000" }} />Entrando...</> : "Entrar"}
             </button>
+            <p className="text-sm text-center mt-2">
+              <span className="text-muted">Não possui uma conta? </span>
+              <Link href="/register" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>
+                Registre sua empresa
+              </Link>
+            </p>
           </form>
           <p className="text-xs text-muted" style={{ textAlign: "center", marginTop: "1.5rem" }}>
             OmniTopology v1.0 · Acesso restrito a usuários autorizados
@@ -90,5 +107,13 @@ export default function LoginPage() {
         .login-logo { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
       `}</style>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
