@@ -124,7 +124,7 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
                 <button key={lt.id}
                   onClick={() => setSelectedEdgeType(lt.id)}
                   style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.35rem 0.5rem", borderRadius: 6, border: `1px solid ${selectedEdgeType === lt.id ? lt.color : "transparent"}`, background: selectedEdgeType === lt.id ? `${lt.color}18` : "transparent", color: selectedEdgeType === lt.id ? lt.color : "var(--text-secondary)", fontSize: "0.78rem", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                  <div style={{ width: 20, height: 2, background: lt.color, borderRadius: 2, flexShrink: 0, borderTop: lt.style === "dotted" ? `2px dotted ${lt.color}` : lt.style === "dashed" ? `2px dashed ${lt.color}` : `2px solid ${lt.color}`, background: "transparent" }} />
+                  <div style={{ width: 20, height: 2, borderRadius: 2, flexShrink: 0, borderTop: lt.style === "dotted" ? `2px dotted ${lt.color}` : lt.style === "dashed" ? `2px dashed ${lt.color}` : `2px solid ${lt.color}`, background: "transparent" }} />
                   {lt.label}
                 </button>
               ))}
