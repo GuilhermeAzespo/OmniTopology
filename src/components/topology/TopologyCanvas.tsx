@@ -57,14 +57,27 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
     // Para evitar closures defasadas, usaremos useEffect para o pre-select
   }, []);
 
+  const isPortAvailable = useCallback((nodeId: string, portName: string) => {
+    return !edges.some(e => 
+      (e.source === nodeId && e.data?.sourcePort === portName) ||
+      (e.target === nodeId && e.data?.targetPort === portName)
+    );
+  }, [edges]);
+
+  const getAvailablePorts = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || !node.data?.interfaces) return [];
+    return node.data.interfaces.filter((i: any) => isPortAvailable(nodeId, i.name));
+  }, [nodes, isPortAvailable]);
+
   useEffect(() => {
     if (pendingConnection) {
-      const sNode = nodes.find(n => n.id === pendingConnection.source);
-      const tNode = nodes.find(n => n.id === pendingConnection.target);
-      if (sNode?.data?.interfaces?.length) setSelectedSourcePort(sNode.data.interfaces[0].name);
-      if (tNode?.data?.interfaces?.length) setSelectedTargetPort(tNode.data.interfaces[0].name);
+      const sPorts = getAvailablePorts(pendingConnection.source);
+      const tPorts = getAvailablePorts(pendingConnection.target);
+      setSelectedSourcePort(sPorts.length > 0 ? sPorts[0].name : "");
+      setSelectedTargetPort(tPorts.length > 0 ? tPorts[0].name : "");
     }
-  }, [pendingConnection, nodes]);
+  }, [pendingConnection, getAvailablePorts]);
 
   const confirmConnection = useCallback((sourcePort: string, targetPort: string) => {
     if (!pendingConnection) return;
@@ -206,17 +219,19 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
               <div className="form-group">
                 <label className="form-label">Origem ({nodes.find(n => n.id === pendingConnection.source)?.data?.label})</label>
                 <select className="form-input" value={selectedSourcePort} onChange={e => setSelectedSourcePort(e.target.value)}>
-                  {nodes.find(n => n.id === pendingConnection.source)?.data?.interfaces?.map((i: any) => (
+                  {getAvailablePorts(pendingConnection.source).map((i: any) => (
                     <option key={i.name} value={i.name}>{i.name}</option>
                   ))}
+                  {getAvailablePorts(pendingConnection.source).length === 0 && <option value="" disabled>Sem portas disponíveis</option>}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Destino ({nodes.find(n => n.id === pendingConnection.target)?.data?.label})</label>
                 <select className="form-input" value={selectedTargetPort} onChange={e => setSelectedTargetPort(e.target.value)}>
-                  {nodes.find(n => n.id === pendingConnection.target)?.data?.interfaces?.map((i: any) => (
+                  {getAvailablePorts(pendingConnection.target).map((i: any) => (
                     <option key={i.name} value={i.name}>{i.name}</option>
                   ))}
+                  {getAvailablePorts(pendingConnection.target).length === 0 && <option value="" disabled>Sem portas disponíveis</option>}
                 </select>
               </div>
             </div>
