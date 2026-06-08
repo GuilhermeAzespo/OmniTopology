@@ -15,7 +15,7 @@ export function cidrToSubnetInfo(cidr: string) {
 }
 
 // Simula a obtenção de IP via DHCP em uma sub-rede
-function simulateDHCP(node: Node, nodes: Node[], edges: Edge[], vlanPath: Set<string> = new Set()) {
+export function simulateDHCP(node: Node, nodes: Node[], edges: Edge[], vlanPath: Set<string> = new Set()) {
   // Procura servidores DHCP conectados ao nó
   // Isso requer travessia do grafo
   let foundIp: string | null = null;
