@@ -71,7 +71,6 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
       ...pendingConnection,
       animated: lt.style === "dashed" || lt.style === "dotted",
       style: { stroke: lt.color, strokeWidth: 2, strokeDasharray: lt.style === "dotted" ? "4 4" : lt.style === "dashed" ? "8 4" : undefined },
-      markerEnd: { type: MarkerType.ArrowClosed, color: lt.color },
       label: lt.label,
       data: { linkType: lt.id, sourcePort, targetPort },
     }, eds));
@@ -149,7 +148,6 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{
           style: { strokeWidth: 2, stroke: "#06b6d4" },
-          markerEnd: { type: MarkerType.ArrowClosed },
         }}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.06)" />
