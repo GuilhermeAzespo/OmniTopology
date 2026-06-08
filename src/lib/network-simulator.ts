@@ -6,8 +6,9 @@ export function ipToLong(ip: string): number {
 }
 
 export function cidrToSubnetInfo(cidr: string) {
-  const [ip, prefixLenStr] = cidr.split("/");
-  if (!ip || !prefixLenStr) return null;
+  let [ip, prefixLenStr] = cidr.split("/");
+  if (!ip) return null;
+  if (!prefixLenStr) prefixLenStr = "24"; // fallback if no mask is provided
   const prefixLen = parseInt(prefixLenStr, 10);
   const mask = ~((1 << (32 - prefixLen)) - 1) >>> 0;
   const network = ipToLong(ip) & mask;
@@ -111,7 +112,9 @@ export function simulatePing(sourceId: string, targetId: string, nodes: Node[], 
   
   if (!srcNet || !dstNet) return { success: false, log: "Configuração de IP inválida." };
   
-  const isSameNetwork = srcNet.network === dstNet.network && srcNet.mask === dstNet.mask;
+  const isSameNetwork = 
+    (ipToLong(dstNet.ip) & srcNet.mask) === srcNet.network && 
+    (ipToLong(srcNet.ip) & dstNet.mask) === dstNet.network;
   
   // Se for a mesma rede, tenta achar o caminho físico checando VLANs
   let pathFound = false;
