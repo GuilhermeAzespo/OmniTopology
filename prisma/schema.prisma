@@ -39,8 +39,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String?
 
   projectMembers ProjectMember[]
   gitConfigs     GitConfig[]
@@ -55,8 +55,8 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  companyId String
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String?
 
   members    ProjectMember[]
   topologies Topology[]
