@@ -4,11 +4,12 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // GET /api/projects/[id]
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const project = await prisma.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       topologies: { orderBy: { updatedAt: "desc" } },
       members: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
@@ -20,7 +21,8 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 }
 
 // PATCH /api/projects/[id]
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const role = (session.user as any).role;
@@ -28,19 +30,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const data = await req.json();
   const project = await prisma.project.update({
-    where: { id: params.id },
+    where: { id },
     data: { name: data.name, description: data.description, color: data.color, icon: data.icon },
   });
   return NextResponse.json(project);
 }
 
 // DELETE /api/projects/[id]
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const role = (session.user as any).role;
   if (role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await prisma.project.delete({ where: { id: params.id } });
+  await prisma.project.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

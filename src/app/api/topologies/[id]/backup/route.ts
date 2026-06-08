@@ -4,18 +4,19 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // POST /api/topologies/[id]/backup — create snapshot
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const topology = await prisma.topology.findUnique({ where: { id: params.id } });
+  const topology = await prisma.topology.findUnique({ where: { id } });
   if (!topology) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const { name, description } = await req.json().catch(() => ({}));
   const dataStr = JSON.stringify(topology.canvasData);
   const backup = await prisma.backup.create({
     data: {
-      topologyId: params.id,
+      topologyId: id,
       name: name || `Backup v${topology.version} — ${new Date().toLocaleString("pt-BR")}`,
       description: description || "",
       canvasData: topology.canvasData as any,
@@ -28,11 +29,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // GET /api/topologies/[id]/backup — list backups
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const backups = await prisma.backup.findMany({
-    where: { topologyId: params.id },
+    where: { topologyId: id },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(backups);

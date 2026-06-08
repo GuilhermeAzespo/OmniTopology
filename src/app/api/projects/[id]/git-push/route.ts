@@ -8,7 +8,8 @@ import path from "path";
 import os from "os";
 
 // POST /api/projects/[id]/git-push
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const role = (session.user as any).role;
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const commitMessage = message || `chore: update topology snapshot [${new Date().toISOString()}]`;
 
   const project = await prisma.project.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       topologies: true,
       gitConfigs: true,
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const gitConfig = project.gitConfigs[0];
   if (!gitConfig) return NextResponse.json({ error: "Git não configurado para este projeto" }, { status: 400 });
 
-  const tmpDir = path.join(os.tmpdir(), `omnitopology-${params.id}-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `omnitopology-${id}-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
 
   try {
@@ -88,11 +89,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // GET /api/projects/[id]/git-push — commit history
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const gitConfig = await prisma.gitConfig.findUnique({
-    where: { projectId: params.id },
+    where: { projectId: id },
     include: { commits: { orderBy: { createdAt: "desc" }, take: 30 } },
   });
   if (!gitConfig) return NextResponse.json({ commits: [], config: null });

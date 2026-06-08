@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 // POST /api/topologies/[id]/rollback — restore from backup
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const role = (session.user as any).role;
@@ -27,11 +28,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   // Create snapshot before rollback
-  const current = await prisma.topology.findUnique({ where: { id: params.id } });
+  const current = await prisma.topology.findUnique({ where: { id } });
   if (current) {
     await prisma.backup.create({
       data: {
-        topologyId: params.id,
+        topologyId: id,
         name: `Pre-rollback snapshot — ${new Date().toLocaleString("pt-BR")}`,
         canvasData: current.canvasData as any,
         version: current.version,
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const topology = await prisma.topology.update({
-    where: { id: params.id },
+    where: { id },
     data: { canvasData, version },
   });
   return NextResponse.json(topology);
