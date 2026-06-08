@@ -13,7 +13,10 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   const project = await prisma.project.findFirst({
     where: { id, companyId },
     include: {
-      topologies: { orderBy: { updatedAt: "desc" } },
+      topologies: { 
+        orderBy: { updatedAt: "desc" },
+        include: { _count: { select: { backups: true } } }
+      },
       members: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
       gitConfigs: true,
     },
