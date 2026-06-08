@@ -11,6 +11,13 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("🌱 Seeding OmniTopology database...");
 
+  // Default Company
+  const defaultCompany = await prisma.company.create({
+    data: {
+      name: "OmniCorp Technology",
+    },
+  });
+
   // Admin user
   const adminPass = await bcrypt.hash("admin123", 10);
   const admin = await prisma.user.upsert({
@@ -21,6 +28,7 @@ async function main() {
       password: adminPass,
       name: "Administrador",
       role: "ADMIN",
+      companyId: defaultCompany.id,
     },
   });
 
@@ -34,6 +42,7 @@ async function main() {
       password: editorPass,
       name: "Editor Redes",
       role: "EDITOR",
+      companyId: defaultCompany.id,
     },
   });
 
@@ -47,6 +56,7 @@ async function main() {
       description: "Topologia de exemplo com roteadores, switches e firewalls",
       color: "#06b6d4",
       icon: "network",
+      companyId: defaultCompany.id,
       members: {
         create: [
           { userId: admin.id, role: "ADMIN" },
@@ -134,6 +144,7 @@ async function main() {
   });
 
   console.log("✅ Seed completed!");
+  console.log("🏢 Company: OmniCorp Technology");
   console.log("📧 Admin: admin@omnitopology.local / admin123");
   console.log("📧 Editor: editor@omnitopology.local / editor123");
 }

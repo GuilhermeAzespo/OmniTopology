@@ -9,16 +9,20 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = (session.user as any).id;
   const role = (session.user as any).role;
+  const companyId = (session.user as any).companyId;
+
+  if (!companyId) return NextResponse.json({ error: "User has no company" }, { status: 403 });
 
   let projects;
   if (role === "ADMIN") {
     projects = await prisma.project.findMany({
+      where: { companyId },
       include: { _count: { select: { topologies: true, members: true } } },
       orderBy: { updatedAt: "desc" },
     });
   } else {
     projects = await prisma.project.findMany({
-      where: { members: { some: { userId } } },
+      where: { companyId, members: { some: { userId } } },
       include: { _count: { select: { topologies: true, members: true } } },
       orderBy: { updatedAt: "desc" },
     });
@@ -33,6 +37,9 @@ export async function POST(req: NextRequest) {
   const role = (session.user as any).role;
   if (role === "READONLY") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const companyId = (session.user as any).companyId;
+  if (!companyId) return NextResponse.json({ error: "User has no company" }, { status: 403 });
+
   const { name, description, color, icon } = await req.json();
   if (!name) return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
 
@@ -40,6 +47,7 @@ export async function POST(req: NextRequest) {
   const project = await prisma.project.create({
     data: {
       name, description, color: color || "#06b6d4", icon: icon || "network",
+      companyId,
       members: { create: { userId, role: "ADMIN" } },
     },
     include: { _count: { select: { topologies: true, members: true } } },

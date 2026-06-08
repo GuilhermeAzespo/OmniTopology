@@ -10,7 +10,10 @@ export async function GET() {
   if (!session || (session.user as any).role !== "ADMIN")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const companyId = (session.user as any).companyId;
+
   const users = await prisma.user.findMany({
+    where: { companyId },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
@@ -23,6 +26,8 @@ export async function POST(req: NextRequest) {
   if (!session || (session.user as any).role !== "ADMIN")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  const companyId = (session.user as any).companyId;
+
   const { email, password, name, role } = await req.json();
   if (!email || !password || !name) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const hashed = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { email, password: hashed, name, role: role || "READONLY" },
+    data: { email, password: hashed, name, role: role || "READONLY", companyId },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
   });
   return NextResponse.json(user, { status: 201 });
