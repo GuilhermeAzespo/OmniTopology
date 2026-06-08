@@ -221,8 +221,6 @@ export default function TopologyPage() {
           />
         </div>
 
-        {/* Right: Properties */}
-        <PropertiesPanel node={selectedNode} nodes={nodes} edges={edges} onUpdate={handleNodeUpdate} readonly={readonly} />
       </div>
 
       {/* Backup modal */}
