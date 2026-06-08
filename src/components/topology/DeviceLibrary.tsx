@@ -2,7 +2,7 @@
 import { DragEvent } from "react";
 import { DEVICE_LIBRARY, CATEGORY_LABELS, DeviceCategory } from "@/lib/devices";
 
-const CATEGORIES: DeviceCategory[] = ["router", "switch", "firewall", "access-point", "server", "cloud"];
+const CATEGORIES: DeviceCategory[] = ["router", "switch", "firewall", "access-point", "server", "endpoint", "cloud"];
 
 interface DeviceLibraryProps {
   onDragStart?: (device: any) => void;
