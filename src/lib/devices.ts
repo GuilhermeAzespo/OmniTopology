@@ -18,6 +18,7 @@ export type DeviceCategory =
   | "firewall"
   | "access-point"
   | "server"
+  | "endpoint"
   | "cloud"
   | "link";
 
@@ -178,6 +179,47 @@ export const DEVICE_LIBRARY: DeviceDefinition[] = [
     icon: "server",
     cliVendor: "windows",
   },
+  // === ENDPOINTS ===
+  {
+    id: "workstation",
+    label: "Workstation",
+    vendor: "generic",
+    category: "endpoint",
+    models: ["PC Desktop", "Mac Pro"],
+    color: "#64748b",
+    icon: "endpoint",
+    cliVendor: "windows",
+  },
+  {
+    id: "notebook",
+    label: "Notebook",
+    vendor: "generic",
+    category: "endpoint",
+    models: ["Laptop Windows", "MacBook"],
+    color: "#64748b",
+    icon: "endpoint",
+    cliVendor: "windows",
+  },
+  {
+    id: "smartphone",
+    label: "Celular / Smartphone",
+    vendor: "generic",
+    category: "endpoint",
+    models: ["iPhone", "Android"],
+    color: "#10b981",
+    icon: "endpoint",
+    cliVendor: "generic",
+  },
+  {
+    id: "ip-phone",
+    label: "Telefone IP",
+    vendor: "cisco",
+    category: "endpoint",
+    models: ["Cisco 7841", "Grandstream"],
+    color: "#3b82f6",
+    icon: "endpoint",
+    cliVendor: "generic",
+  },
   // === CLOUD / INTERNET ===
   {
     id: "cloud",
@@ -197,6 +239,7 @@ export const CATEGORY_LABELS: Record<DeviceCategory, string> = {
   firewall: "Firewalls",
   "access-point": "Access Points",
   server: "Servidores",
+  endpoint: "Dispositivos Finais",
   cloud: "Cloud / Internet",
   link: "Links",
 };
