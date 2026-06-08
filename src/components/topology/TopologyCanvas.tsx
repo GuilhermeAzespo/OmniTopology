@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useRef, useState, DragEvent } from "react";
+import { useCallback, useRef, useState, DragEvent, useEffect } from "react";
 import ReactFlow, {
   Background, Controls, MiniMap, addEdge, useNodesState, useEdgesState,
   Connection, Edge, Node, BackgroundVariant, MarkerType, Panel,
@@ -8,6 +8,7 @@ import "reactflow/dist/style.css";
 import DeviceNode from "./DeviceNode";
 import { DEVICE_LIBRARY, LINK_TYPES } from "@/lib/devices";
 import type { DeviceDefinition } from "@/lib/devices";
+import { simulatePing } from "@/lib/network-simulator";
 
 const nodeTypes = { deviceNode: DeviceNode };
 
@@ -30,17 +31,52 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
 
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const [selectedSourcePort, setSelectedSourcePort] = useState<string>("");
+  const [selectedTargetPort, setSelectedTargetPort] = useState<string>("");
+
+  const [showPingModal, setShowPingModal] = useState(false);
+  const [pingSource, setPingSource] = useState("");
+  const [pingTarget, setPingTarget] = useState("");
+  const [pingLog, setPingLog] = useState("");
+  const [pingResult, setPingResult] = useState(false);
+
+  const handleRunPing = () => {
+    setPingLog("Simulando...");
+    setTimeout(() => {
+      const res = simulatePing(pingSource, pingTarget, nodes, edges);
+      setPingLog(res.log);
+      setPingResult(res.success);
+    }, 600);
+  };
+
   const onConnect = useCallback((params: Connection) => {
+    setPendingConnection(params);
+    // Para evitar closures defasadas, usaremos useEffect para o pre-select
+  }, []);
+
+  useEffect(() => {
+    if (pendingConnection) {
+      const sNode = nodes.find(n => n.id === pendingConnection.source);
+      const tNode = nodes.find(n => n.id === pendingConnection.target);
+      if (sNode?.data?.interfaces?.length) setSelectedSourcePort(sNode.data.interfaces[0].name);
+      if (tNode?.data?.interfaces?.length) setSelectedTargetPort(tNode.data.interfaces[0].name);
+    }
+  }, [pendingConnection, nodes]);
+
+  const confirmConnection = useCallback((sourcePort: string, targetPort: string) => {
+    if (!pendingConnection) return;
     const lt = LINK_TYPES.find(l => l.id === selectedEdgeType) || LINK_TYPES[0];
     setEdges(eds => addEdge({
-      ...params,
+      ...pendingConnection,
       animated: lt.style === "dashed" || lt.style === "dotted",
       style: { stroke: lt.color, strokeWidth: 2, strokeDasharray: lt.style === "dotted" ? "4 4" : lt.style === "dashed" ? "8 4" : undefined },
       markerEnd: { type: MarkerType.ArrowClosed, color: lt.color },
       label: lt.label,
-      data: { linkType: lt.id },
+      data: { linkType: lt.id, sourcePort, targetPort },
     }, eds));
-  }, [selectedEdgeType]);
+    setPendingConnection(null);
+  }, [pendingConnection, selectedEdgeType]);
 
   const onDragOver = useCallback((event: DragEvent) => {
     event.preventDefault();
@@ -55,6 +91,13 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
     const device: DeviceDefinition = JSON.parse(deviceData);
     const bounds = reactFlowWrapper.current.getBoundingClientRect();
     const position = reactFlowInstance.screenToFlowPosition({ x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+    let defaultInterfaces = [{ name: "eth0", ip: "" }];
+    if (device.category === "switch") {
+      defaultInterfaces = Array.from({ length: 8 }).map((_, i) => ({ name: `port${i + 1}`, ip: "", vlan: "1", mode: "access" }));
+    } else if (device.category === "router" || device.category === "firewall") {
+      defaultInterfaces = Array.from({ length: 4 }).map((_, i) => ({ name: `eth${i}`, ip: "" }));
+    }
+
     const newNode: Node = {
       id: getId(),
       type: "deviceNode",
@@ -69,7 +112,7 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
         status: "active",
         color: device.color,
         cliVendor: device.cliVendor,
-        interfaces: [{ name: "eth0", ip: "" }],
+        interfaces: defaultInterfaces,
         notes: "",
         vlans: "",
       },
@@ -129,6 +172,9 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
                 </button>
               ))}
               <div className="divider" style={{ margin: "0.25rem 0" }} />
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowPingModal(true)}>
+                Testar Conectividade
+              </button>
               <button id="btn-save-topology" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
                 {saving ? <><span className="spinner" style={{ borderColor: "rgba(0,0,0,0.2)", borderTopColor: "#000", width: 12, height: 12, borderWidth: 2 }} />Salvando</> : "💾 Salvar"}
               </button>
@@ -136,6 +182,83 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
           </Panel>
         )}
       </ReactFlow>
+
+      {pendingConnection && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h3>Conectar Portas</h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setPendingConnection(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Origem ({nodes.find(n => n.id === pendingConnection.source)?.data?.label})</label>
+                <select className="form-input" value={selectedSourcePort} onChange={e => setSelectedSourcePort(e.target.value)}>
+                  {nodes.find(n => n.id === pendingConnection.source)?.data?.interfaces?.map((i: any) => (
+                    <option key={i.name} value={i.name}>{i.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Destino ({nodes.find(n => n.id === pendingConnection.target)?.data?.label})</label>
+                <select className="form-input" value={selectedTargetPort} onChange={e => setSelectedTargetPort(e.target.value)}>
+                  {nodes.find(n => n.id === pendingConnection.target)?.data?.interfaces?.map((i: any) => (
+                    <option key={i.name} value={i.name}>{i.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setPendingConnection(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={() => confirmConnection(selectedSourcePort, selectedTargetPort)} disabled={!selectedSourcePort || !selectedTargetPort}>
+                Conectar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPingModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h3>Testar Conectividade</h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowPingModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Nó de Origem</label>
+                  <select className="form-input" value={pingSource} onChange={e => setPingSource(e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {nodes.filter(n => n.data.category !== "switch" && n.data.category !== "link").map(n => (
+                      <option key={n.id} value={n.id}>{n.data.label} ({n.data.hostname})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Nó de Destino</label>
+                  <select className="form-input" value={pingTarget} onChange={e => setPingTarget(e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {nodes.filter(n => n.data.category !== "switch" && n.data.category !== "link").map(n => (
+                      <option key={n.id} value={n.id}>{n.data.label} ({n.data.hostname})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button className="btn btn-primary" style={{ width: "100%", marginTop: "1rem" }} onClick={handleRunPing} disabled={!pingSource || !pingTarget}>
+                Executar Ping
+              </button>
+              
+              {pingLog && (
+                <div style={{ marginTop: "1rem", background: "#000", color: pingResult ? "#28c840" : "#ff5f57", padding: "1rem", borderRadius: 8, fontFamily: "monospace", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>
+                  {pingLog}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
