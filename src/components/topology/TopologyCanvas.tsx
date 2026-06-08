@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState, DragEvent, useEffect } from "react";
 import ReactFlow, {
   Background, Controls, MiniMap, addEdge, useNodesState, useEdgesState,
-  Connection, Edge, Node, BackgroundVariant, MarkerType, Panel,
+  Connection, Edge, Node, BackgroundVariant, MarkerType, Panel, ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import DeviceNode from "./DeviceNode";
@@ -147,6 +147,7 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
     <div ref={reactFlowWrapper} style={{ flex: 1, height: "100%", position: "relative" }}>
       <ReactFlow
         nodes={nodes} edges={edges}
+        connectionMode={ConnectionMode.Loose}
         onNodesChange={readonly ? undefined : onNodesChange}
         onEdgesChange={readonly ? undefined : onEdgesChange}
         onConnect={readonly ? undefined : onConnect}
