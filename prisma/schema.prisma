@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  READONLY
+}
+
+enum NodeStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  UNKNOWN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(READONLY)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectMembers ProjectMember[]
+  gitConfigs     GitConfig[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#06b6d4")
+  icon        String   @default("network")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members    ProjectMember[]
+  topologies Topology[]
+  gitConfigs GitConfig[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      Role     @default(READONLY)
+  createdAt DateTime @default(now())
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+
+  @@unique([userId, projectId])
+}
+
+model Topology {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  version     Int      @default(1)
+  canvasData  Json     @default("{\"nodes\":[],\"edges\":[]}")
+  thumbnail   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+
+  backups Backup[]
+}
+
+model Backup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  canvasData  Json
+  version     Int
+  fileSize    Int      @default(0)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  topology   Topology @relation(fields: [topologyId], references: [id], onDelete: Cascade)
+  topologyId String
+}
+
+model GitConfig {
+  id         String   @id @default(cuid())
+  repoUrl    String
+  branch     String   @default("main")
+  token      String?
+  username   String?
+  autoCommit Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String  @unique
+
+  user   User?  @relation(fields: [userId], references: [id])
+  userId String?
+
+  commits GitCommit[]
+}
+
+model GitCommit {
+  id        String   @id @default(cuid())
+  hash      String
+  message   String
+  author    String
+  branch    String
+  status    String   @default("success")
+  createdAt DateTime @default(now())
+
+  gitConfig   GitConfig @relation(fields: [gitConfigId], references: [id], onDelete: Cascade)
+  gitConfigId String
+}

@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: omnitopology-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omni
+      POSTGRES_PASSWORD: omni123
+      POSTGRES_DB: omnitopology
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omni -d omnitopology"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omnitopology-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://omni:omni123@postgres:5432/omnitopology
+      NEXTAUTH_SECRET: omnitopology-secret-change-in-production
+      NEXTAUTH_URL: http://localhost:3000
+      GIT_AUTHOR_NAME: OmniTopology
+      GIT_AUTHOR_EMAIL: omni@topology.local
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  app_uploads:
