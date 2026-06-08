@@ -71,7 +71,7 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
   }, [nodes, isPortAvailable]);
 
   useEffect(() => {
-    if (pendingConnection) {
+    if (pendingConnection && pendingConnection.source && pendingConnection.target) {
       const sPorts = getAvailablePorts(pendingConnection.source);
       const tPorts = getAvailablePorts(pendingConnection.target);
       setSelectedSourcePort(sPorts.length > 0 ? sPorts[0].name : "");
