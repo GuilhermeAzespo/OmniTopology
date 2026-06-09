@@ -25,7 +25,7 @@ export default function DesktopView({ nodeId, nodes, edges }: DesktopViewProps) 
     setTimeout(() => {
       const res = simulateWebRequest(nodeId, url, nodes, edges);
       if (res.success) {
-        setContent(res.html);
+        setContent(res.html || "");
       } else {
         setError(res.error || "Erro ao carregar a página.");
       }
