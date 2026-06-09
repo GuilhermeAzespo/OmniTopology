@@ -22,7 +22,7 @@ export default function TerminalModal({ data, cli, computedPrompt, history, inpu
 
   return (
     <div className="modal-overlay" style={{ zIndex: 9999 }}>
-      <div className="modal-content" style={{ width: "80vw", height: "80vh", maxWidth: "1200px", display: "flex", flexDirection: "column", padding: 0, background: "#0a0a0a", border: "1px solid #333" }}>
+      <div className="modal-content" style={{ width: "90vw", height: "85vh", maxWidth: "1400px", display: "flex", flexDirection: "column", padding: 0, background: "#050505", border: "1px solid #333" }}>
         <div className="terminal-titlebar" style={{ padding: "0.75rem 1rem", borderBottom: "1px solid #222", display: "flex", alignItems: "center" }}>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <div className="terminal-dot" style={{ background: "#ff5f57", cursor: "pointer" }} onClick={onClose} />
@@ -34,9 +34,9 @@ export default function TerminalModal({ data, cli, computedPrompt, history, inpu
           </span>
           <div style={{ width: 40 }} />
         </div>
-        <div className="terminal-body" style={{ flex: 1, padding: "1rem", fontSize: "0.95rem", lineHeight: 1.4, overflowY: "auto" }}>
+        <div className="terminal-body" style={{ flex: 1, padding: "1.5rem", fontSize: "0.95rem", lineHeight: 1.5, overflowY: "auto", overflowX: "auto", fontFamily: "'JetBrains Mono', monospace" }}>
           {history.map((line, i) => (
-            <div key={i} className="terminal-output" style={{ color: line.startsWith(data.hostname) ? "#06b6d4" : "#e5e5e5", whiteSpace: "pre-wrap" }}>
+            <div key={i} className="terminal-output" style={{ color: line.startsWith(data.hostname) ? "#06b6d4" : "#e5e5e5", whiteSpace: "pre" }}>
               {line}
             </div>
           ))}
