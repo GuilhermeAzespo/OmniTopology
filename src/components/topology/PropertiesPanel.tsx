@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { Node, Edge } from "reactflow";
 import { CLI_VENDORS } from "@/lib/cli-templates";
 import { simulateDHCP } from "@/lib/network-simulator";
+import TerminalModal from "./device-views/TerminalModal";
+import SwitchPanel from "./device-views/SwitchPanel";
+import DesktopView from "./device-views/DesktopView";
 
 const STATUS_OPTIONS = ["active", "inactive", "maintenance", "unknown"];
 const STATUS_LABELS: Record<string, string> = { active: "Ativo", inactive: "Inativo", maintenance: "Manutenção", unknown: "Desconhecido" };
@@ -15,13 +18,14 @@ interface PropertiesPanelProps {
   readonly?: boolean;
 }
 
-type Tab = "info" | "interfaces" | "terminal" | "notes";
+type Tab = "info" | "interfaces" | "terminal" | "notes" | "view";
 
 export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate, readonly }: PropertiesPanelProps) {
   const [tab, setTab] = useState<Tab>("info");
   const [data, setData] = useState<any>({});
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [terminalInput, setTerminalInput] = useState("");
+  const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
 
   useEffect(() => {
     if (node) {
@@ -79,9 +83,9 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
           <span className={`badge badge-${data.status === "active" ? "active" : data.status === "inactive" ? "inactive" : "maintenance"}`} style={{ marginLeft: "auto", flexShrink: 0 }}>{STATUS_LABELS[data.status] || data.status}</span>
         </div>
         <div className="tabs">
-          {(["info", "interfaces", "terminal", "notes"] as Tab[]).map(t => (
+          {(["info", "interfaces", "terminal", "notes", "view"] as Tab[]).map(t => (
             <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-              {{ info: "Info", interfaces: "IPs", terminal: "CLI", notes: "Notas" }[t]}
+              {{ info: "Info", interfaces: "IPs", terminal: "CLI", notes: "Notas", view: data.category === "endpoint" ? "Desktop" : "Visão Fís." }[t]}
             </button>
           ))}
         </div>
@@ -139,8 +143,11 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
                       <input className="form-input" style={{ fontSize: "0.75rem", flex: 2 }} value={iface.vlan || ""} onChange={e => updateInterface(idx, "vlan", e.target.value)} disabled={readonly} placeholder={iface.mode === "trunk" ? "Allowed (ex: 10,20)" : "VLAN ID"} />
                     </div>
                   ) : (
-                    <div style={{ display: "flex", gap: "0.4rem" }}>
-                      <input className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="IP (ex: 192.168.1.1/24)" />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                        <input className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.ip || ""} onChange={e => updateInterface(idx, "ip", e.target.value)} disabled={readonly} placeholder="IP (ex: 192.168.1.1/24)" />
+                        <input className="form-input" style={{ fontSize: "0.75rem", flex: 1 }} value={iface.gateway || ""} onChange={e => updateInterface(idx, "gateway", e.target.value)} disabled={readonly} placeholder="Gateway (opcional)" />
+                      </div>
                       {!readonly && !iface.ip && (
                         <button 
                           className="btn btn-secondary btn-sm" 
@@ -176,10 +183,18 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
         {tab === "terminal" && (
           <div className="terminal-wrapper">
             <div className="terminal-titlebar">
-              <div className="terminal-dot" style={{ background: "#ff5f57" }} />
-              <div className="terminal-dot" style={{ background: "#febc2e" }} />
-              <div className="terminal-dot" style={{ background: "#28c840" }} />
-              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "0.5rem" }}>{data.hostname || "device"} — CLI ({data.cliVendor || "generic"})</span>
+              <div style={{ display: "flex", gap: "0.3rem" }}>
+                <div className="terminal-dot" style={{ background: "#ff5f57" }} />
+                <div className="terminal-dot" style={{ background: "#febc2e" }} />
+                <div className="terminal-dot" style={{ background: "#28c840" }} />
+              </div>
+              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginLeft: "0.5rem", flex: 1 }}>{data.hostname || "device"} — CLI</span>
+              <button 
+                onClick={() => setIsTerminalMaximized(true)}
+                style={{ background: "transparent", border: "none", color: "#06b6d4", cursor: "pointer", fontSize: "0.7rem" }}
+              >
+                ⛶ Expandir
+              </button>
             </div>
             <div className="terminal-body">
               {terminalHistory.map((line, i) => (
@@ -202,7 +217,29 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
               placeholder="# Documentação&#10;&#10;Descreva configurações, links, histórico..." />
           </div>
         )}
+
+        {tab === "view" && (
+          <div>
+            {data.category === "endpoint" ? (
+              <DesktopView nodeId={node.id} nodes={nodes} edges={edges} />
+            ) : (
+              <SwitchPanel nodeId={node.id} data={data} edges={edges} />
+            )}
+          </div>
+        )}
       </div>
+
+      {isTerminalMaximized && (
+        <TerminalModal
+          data={data}
+          cli={cli}
+          history={terminalHistory}
+          input={terminalInput}
+          onInputChange={setTerminalInput}
+          onCommand={handleTerminalCommand}
+          onClose={() => setIsTerminalMaximized(false)}
+        />
+      )}
     </div>
   );
 }
