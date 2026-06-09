@@ -128,7 +128,7 @@ Type 'help' for a list of available commands.
     // Comandos de configuração global
     if (mode === "config") {
       if (parts[0] === "hostname" && parts[1]) {
-        updateField("hostname", parts[1]);
+        updateField("hostname", parts.slice(1).join(" "));
         return "";
       }
       if (parts[0] === "vlan" && parts[1]) {
