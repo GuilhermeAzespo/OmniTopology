@@ -60,7 +60,7 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
     let handled = false;
     
     if (cli.parseCommand) {
-      const res = cli.parseCommand(cmd, data, cliState, setCliState, updateField);
+      const res = cli.parseCommand(cmd, data, cliState, setCliState, updateField, nodes, edges);
       if (res !== null) {
         output = res;
         handled = true;
@@ -69,7 +69,7 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
     
     if (!handled) {
       const handler = cli.commands[cmd];
-      output = handler ? handler(cmd.split(" "), data, cliState, setCliState, updateField) : `bash: ${cmd}: command not found`;
+      output = handler ? handler(cmd.split(" "), data, cliState, setCliState, updateField, nodes, edges) : `bash: ${cmd}: command not found`;
     }
     
     setTerminalHistory(h => [...h, `${computedPrompt}${cmd}`, ...(output ? [output] : [])]);
