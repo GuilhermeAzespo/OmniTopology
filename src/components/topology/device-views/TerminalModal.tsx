@@ -5,6 +5,7 @@ import { CliTemplate } from "@/lib/cli-templates";
 interface TerminalModalProps {
   data: any;
   cli: CliTemplate | undefined;
+  computedPrompt: string;
   history: string[];
   input: string;
   onInputChange: (val: string) => void;
@@ -12,7 +13,7 @@ interface TerminalModalProps {
   onClose: () => void;
 }
 
-export default function TerminalModal({ data, cli, history, input, onInputChange, onCommand, onClose }: TerminalModalProps) {
+export default function TerminalModal({ data, cli, computedPrompt, history, input, onInputChange, onCommand, onClose }: TerminalModalProps) {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function TerminalModal({ data, cli, history, input, onInputChange
           ))}
           <div className="terminal-input-row" style={{ display: "flex", alignItems: "center", marginTop: "0.5rem" }}>
             <span className="terminal-prompt" style={{ color: "#06b6d4", marginRight: "0.5rem", whiteSpace: "nowrap" }}>
-              {data.hostname || "device"}{cli?.prompt || "$ "}
+              {computedPrompt}
             </span>
             <input 
               className="terminal-input" 
