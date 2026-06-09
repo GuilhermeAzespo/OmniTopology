@@ -9,9 +9,10 @@ interface DesktopViewProps {
   nodeId: string;
   nodes: Node[];
   edges: Edge[];
+  onOpenTerminal?: () => void;
 }
 
-export default function DesktopView({ nodeId, nodes, edges }: DesktopViewProps) {
+export default function DesktopView({ nodeId, nodes, edges, onOpenTerminal }: DesktopViewProps) {
   const [activeApp, setActiveApp] = useState<"browser" | "minesweeper" | null>(null);
   const [url, setUrl] = useState("http://omni.local");
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function DesktopView({ nodeId, nodes, edges }: DesktopViewProps) 
 
   return (
     <div style={{ 
-      background: "url('https://upload.wikimedia.org/wikipedia/en/2/21/Bliss_%28Windows_XP%29.png') center/cover", 
+      background: "linear-gradient(to bottom, #3a82f7 0%, #5ba8ff 60%, #46b436 60%, #359822 100%)", 
       borderRadius: 8, marginTop: "1rem", height: 400, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" 
     }}>
       {/* Desktop Icons */}
@@ -49,6 +50,10 @@ export default function DesktopView({ nodeId, nodes, edges }: DesktopViewProps) 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", width: 60 }} onDoubleClick={() => setActiveApp("minesweeper")}>
           <div style={{ fontSize: "2rem", textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>💣</div>
           <span style={{ color: "#fff", textShadow: "1px 1px 2px #000", fontSize: "0.7rem", textAlign: "center", marginTop: "4px" }}>Campo Minado</span>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer", width: 60 }} onDoubleClick={() => onOpenTerminal && onOpenTerminal()}>
+          <div style={{ fontSize: "2rem", textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>💻</div>
+          <span style={{ color: "#fff", textShadow: "1px 1px 2px #000", fontSize: "0.7rem", textAlign: "center", marginTop: "4px" }}>Prompt de Comando</span>
         </div>
       </div>
 
