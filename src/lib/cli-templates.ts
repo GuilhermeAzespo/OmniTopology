@@ -2,8 +2,9 @@
 
 export interface CliTemplate {
   welcome: string;
-  prompt: string;
-  commands: Record<string, (args: string[], nodeData: any) => string>;
+  prompt: string | ((cliState: any) => string);
+  commands: Record<string, (args: string[], data: any, cliState?: any, setCliState?: (s: any) => void, updateField?: (f: string, v: any) => void) => string>;
+  parseCommand?: (cmd: string, data: any, cliState: any, setCliState: (s: any) => void, updateField: (f: string, v: any) => void) => string | null;
 }
 
 const hostname = (data: any) => data?.hostname || "device";
@@ -14,16 +15,82 @@ Cisco IOS Software, Version 15.7(3)M, RELEASE SOFTWARE (fc2)
 Copyright (c) 1986-2019 by Cisco Systems, Inc.
 Type 'help' for a list of available commands.
 `,
-  prompt: "#",
+  prompt: (s) => {
+    if (s?.mode === "priv") return "# ";
+    if (s?.mode === "config") return "(config)# ";
+    if (s?.mode === "config-if") return "(config-if)# ";
+    return "> ";
+  },
+  parseCommand: (cmd, data, cliState, setCliState, updateField) => {
+    const parts = cmd.split(" ").filter(Boolean);
+    if (parts.length === 0) return "";
+    
+    const mode = cliState?.mode || "user";
+
+    // Modos de entrada/saida
+    if (cmd === "enable") { setCliState({ ...cliState, mode: "priv" }); return ""; }
+    if (cmd === "disable") { setCliState({ ...cliState, mode: "user" }); return ""; }
+    if (cmd === "configure terminal" || cmd === "conf t") {
+      if (mode !== "priv") return "Command not allowed here.";
+      setCliState({ ...cliState, mode: "config" }); return "Enter configuration commands, one per line.  End with CNTL/Z.";
+    }
+    if (cmd === "exit") {
+      if (mode === "config-if") setCliState({ ...cliState, mode: "config", currentIf: null });
+      else if (mode === "config") setCliState({ ...cliState, mode: "priv" });
+      else if (mode === "priv") setCliState({ ...cliState, mode: "user" });
+      return "";
+    }
+    if (cmd === "end") {
+      setCliState({ ...cliState, mode: "priv", currentIf: null }); return "";
+    }
+
+    // Comandos de configuração global
+    if (mode === "config") {
+      if (parts[0] === "hostname" && parts[1]) {
+        updateField("hostname", parts[1]);
+        return "";
+      }
+      if (parts[0] === "interface" && parts[1]) {
+        setCliState({ ...cliState, mode: "config-if", currentIf: parts[1] });
+        return "";
+      }
+    }
+
+    // Comandos de configuração de interface
+    if (mode === "config-if" && cliState.currentIf) {
+      if (parts[0] === "ip" && parts[1] === "address" && parts[2]) {
+        // Encontra ou cria a interface
+        let ifaces = [...(data.interfaces || [])];
+        let idx = ifaces.findIndex((i: any) => i.name === cliState.currentIf);
+        if (idx === -1) {
+          ifaces.push({ name: cliState.currentIf, ip: "", mode: "access", vlan: "1" });
+          idx = ifaces.length - 1;
+        }
+        // formato ex: 192.168.1.1 255.255.255.0. No nosso sistema usamos CIDR ou apenas IP
+        ifaces[idx].ip = parts[2]; 
+        updateField("interfaces", ifaces);
+        return "";
+      }
+      if (parts[0] === "no" && parts[1] === "shutdown") {
+        return ""; // Apenas ignora e da ok no simulador visual
+      }
+    }
+
+    return null; // fallback para os commands estáticos
+  },
   commands: {
     help: () => `
 Available commands:
+  enable               - Enter privileged mode
   show version         - Display IOS version information
   show ip interface brief - Show interface summary
   show running-config  - Display running configuration
   show ip route        - Display routing table
+  configure terminal   - Enter configuration terminal
   interface [name]     - Enter interface configuration
+  ip address [ip] [mask] - Set interface IP
   hostname [name]      - Set device hostname
+  exit                 - Exit current mode
   clear                - Clear terminal
 `,
     "show version": (_, d) => `
@@ -55,7 +122,7 @@ hostname ${hostname(d)}
 `;
       ifaces.forEach((i: any) => {
         out += `interface ${i.name}\n`;
-        if (i.ip) out += ` ip address ${i.ip.split('/')[0]} 255.255.255.0\n`;
+        if (i.ip) out += ` ip address ${i.ip} 255.255.255.0\n`;
         else out += ` no ip address\n`;
         out += ` no shutdown\n!\n`;
       });
