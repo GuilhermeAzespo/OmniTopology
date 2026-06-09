@@ -182,9 +182,51 @@ export function simulatePing(sourceId: string, targetId: string, nodes: Node[], 
     }
   } else {
     // Roteamento
-    // Vamos assumir que se não for a mesma rede e não tiver roteador, falha
-    // Em uma versão simples, apenas relatamos:
-    log += `\nFalha: Roteamento não simulado nesta versão (IPs em sub-redes diferentes).`;
-    return { success: false, log };
+    const defaultGw = source.data.interfaces?.some((i: any) => i.gateway);
+    if (!defaultGw && source.data.category !== "router" && source.data.category !== "firewall") {
+      log += `\nFalha: O host não tem gateway configurado para alcançar redes externas.`;
+      return { success: false, log };
+    }
+    if (pathFound) {
+      log += `\nResposta de ${targetIp.split('/')[0]}: bytes=32 tempo=15ms TTL=54\n`;
+      log += `Resposta de ${targetIp.split('/')[0]}: bytes=32 tempo=16ms TTL=54\n`;
+      log += `\nSucesso: Roteamento via Gateway bem-sucedido.`;
+      return { success: true, log };
+    } else {
+      log += `\nFalha: Host de destino inalcançável.\nMotivo: ${blockReason || "Sem rota física"}`;
+      return { success: false, log };
+    }
+  }
+}
+
+export function simulateWebRequest(sourceId: string, url: string, nodes: Node[], edges: Edge[]) {
+  try {
+    const urlObj = new URL(url.startsWith('http') ? url : `http://${url}`);
+    const host = urlObj.hostname;
+    
+    let target = nodes.find(n => n.data.hostname === host);
+    if (!target) target = nodes.find(n => n.data.interfaces?.some((i: any) => i.ip?.split('/')[0] === host));
+    
+    if (!target) {
+      const cloudNode = nodes.find(n => n.data.category === "cloud");
+      if (cloudNode) {
+        const ping = simulatePing(sourceId, cloudNode.id, nodes, edges);
+        if (ping.success) {
+          return { success: true, html: `<div style="font-family:sans-serif;text-align:center;margin-top:20px;"><h1>Internet Simulada</h1><p>Conexão estabelecida com sucesso via Nuvem (WAN).</p><p style="color:#666">Você acessou: <b>${host}</b></p></div>` };
+        } else {
+          return { success: false, error: "Sem rota para a internet. Verifique o gateway e a conexão do roteador com a Nuvem." };
+        }
+      }
+      return { success: false, error: "Servidor não encontrado na topologia e nenhuma Nuvem disponível." };
+    }
+    
+    const ping = simulatePing(sourceId, target.id, nodes, edges);
+    if (ping.success) {
+      return { success: true, html: `<div style="font-family:sans-serif;text-align:center;margin-top:20px;"><h1>${target.data.label}</h1><p>Página inicial do servidor (Hostname: ${target.data.hostname})</p><p style="color:#28c840">Conexão OK</p></div>` };
+    } else {
+      return { success: false, error: "O Servidor existe, mas está inalcançável (Falha de Rota/VLAN/Cabo)." };
+    }
+  } catch (e) {
+    return { success: false, error: "URL Inválida." };
   }
 }
