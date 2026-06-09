@@ -3,8 +3,8 @@
 export interface CliTemplate {
   welcome: string;
   prompt: string | ((cliState: any) => string);
-  commands: Record<string, (args: string[], data: any, cliState?: any, setCliState?: (s: any) => void, updateField?: (f: string, v: any) => void) => string>;
-  parseCommand?: (cmd: string, data: any, cliState: any, setCliState: (s: any) => void, updateField: (f: string, v: any) => void) => string | null;
+  commands: Record<string, (args: string[], data: any, cliState?: any, setCliState?: (s: any) => void, updateField?: (f: string, v: any) => void, nodes?: any[], edges?: any[]) => string>;
+  parseCommand?: (cmd: string, data: any, cliState: any, setCliState: (s: any) => void, updateField: (f: string, v: any) => void, nodes: any[], edges: any[]) => string | null;
 }
 
 const hostname = (data: any) => data?.hostname || "device";
@@ -21,11 +21,91 @@ Type 'help' for a list of available commands.
     if (s?.mode === "config-if") return "(config-if)# ";
     return "> ";
   },
-  parseCommand: (cmd, data, cliState, setCliState, updateField) => {
-    const parts = cmd.split(" ").filter(Boolean);
+  parseCommand: (cmd, data, cliState, setCliState, updateField, nodes = [], edges = []) => {
+    let processCmd = cmd.trim();
+    if (!processCmd) return "";
+
+    let isDo = false;
+    if (processCmd.startsWith("do ")) {
+      isDo = true;
+      processCmd = processCmd.substring(3).trim();
+    }
+
+    const parts = processCmd.split(" ").filter(Boolean);
     if (parts.length === 0) return "";
     
     const mode = cliState?.mode || "user";
+
+    // "do" só afeta comandos estáticos de show e ping
+    if (isDo) {
+      // Se não for um comando estático conhecido nem um ping, falha
+      if (processCmd.startsWith("ping")) {
+         // Tratamento de ping mais abaixo
+      } else if (!CISCO_CLI.commands[processCmd] && !processCmd.startsWith("show")) {
+         return `bash: ${processCmd}: command not found`;
+      }
+    }
+
+    // Comandos de Ping
+    if (parts[0] === "ping" && parts[1]) {
+      const targetIp = parts[1];
+      const targetNode = nodes.find(n => n.data.interfaces?.some((i: any) => i.ip?.split('/')[0] === targetIp));
+      if (!targetNode) return ".....\nSuccess rate is 0 percent (0/5)";
+      
+      const res = require("@/lib/network-simulator").simulatePing(data.id || data.hostname, targetNode.id, nodes, edges);
+      if (res.success) {
+        return "Type escape sequence to abort.\nSending 5, 100-byte ICMP Echos to " + targetIp + ", timeout is 2 seconds:\n!!!!!\nSuccess rate is 100 percent (5/5), round-trip min/avg/max = 1/2/4 ms";
+      } else {
+        return "Type escape sequence to abort.\nSending 5, 100-byte ICMP Echos to " + targetIp + ", timeout is 2 seconds:\n.....\nSuccess rate is 0 percent (0/5)";
+      }
+    }
+
+    // Interceptando shows dinâmicos (que precisam ler a rede)
+    if (processCmd === "show mac address-table" || processCmd === "show mac-address-table") {
+      let out = "          Mac Address Table\n-------------------------------------------\nVlan    Mac Address       Type        Ports\n----    -----------       --------    -----\n";
+      const myEdges = edges.filter(e => e.source === data.id || e.target === data.id);
+      myEdges.forEach((e: any) => {
+        const otherNodeId = e.source === data.id ? e.target : e.source;
+        const otherNode = nodes.find(n => n.id === otherNodeId);
+        const myPort = e.source === data.id ? e.data.sourcePort : e.data.targetPort;
+        if (otherNode) {
+          // Geração de mac fake mas consistente pro nó
+          const hash = otherNodeId.replace(/[^0-9a-f]/ig, '').padEnd(12, '0').toLowerCase();
+          const mac = `${hash.substring(0,4)}.${hash.substring(4,8)}.${hash.substring(8,12)}`;
+          const iface = data.interfaces?.find((i:any) => i.name === myPort);
+          const vlan = iface?.vlan || "1";
+          out += ` ${vlan.padEnd(6)} ${mac.padEnd(17)} DYNAMIC     ${myPort}\n`;
+        }
+      });
+      return out;
+    }
+
+    if (processCmd === "show vlan brief" || processCmd === "show vlan") {
+      const vlans = Array.isArray(data.vlans) ? data.vlans : [{ id: "1", name: "default" }];
+      let out = "VLAN Name                             Status    Ports\n---- -------------------------------- --------- -------------------------------\n";
+      vlans.forEach((v: any) => {
+        const ports = (data.interfaces || []).filter((i:any) => i.mode === "access" && (i.vlan === v.id || (!i.vlan && v.id==="1"))).map((i:any) => i.name).join(", ");
+        out += `${v.id.padEnd(4)} ${v.name.padEnd(32)} active    ${ports}\n`;
+      });
+      return out;
+    }
+
+    if (processCmd === "show interfaces status") {
+      let out = "Port      Name               Status       Vlan       Duplex  Speed Type\n";
+      (data.interfaces || []).forEach((i: any) => {
+        const isConnected = edges.some(e => (e.source === data.id && e.data.sourcePort === i.name) || (e.target === data.id && e.data.targetPort === i.name));
+        const status = isConnected ? "connected" : "notconnect";
+        const vlan = i.mode === "trunk" ? "trunk" : (i.vlan || "1");
+        out += `${i.name.padEnd(9)} ${(i.description || "").padEnd(18)} ${status.padEnd(12)} ${vlan.padEnd(10)} a-full a-1000 10/100/1000BaseTX\n`;
+      });
+      return out;
+    }
+
+    // Se foi um 'do' estático e passou pelas interceptações acima, joga pro handler normal
+    if (isDo) {
+      const handler = CISCO_CLI.commands[processCmd];
+      return handler ? handler(parts, data, cliState, setCliState, updateField, nodes, edges) : `bash: ${processCmd}: command not found`;
+    }
 
     // Modos de entrada/saida
     if (cmd === "enable") { setCliState({ ...cliState, mode: "priv" }); return ""; }
@@ -35,13 +115,13 @@ Type 'help' for a list of available commands.
       setCliState({ ...cliState, mode: "config" }); return "Enter configuration commands, one per line.  End with CNTL/Z.";
     }
     if (cmd === "exit") {
-      if (mode === "config-if") setCliState({ ...cliState, mode: "config", currentIf: null });
+      if (mode === "config-vlan" || mode === "config-if") setCliState({ ...cliState, mode: "config", currentIf: null, currentVlan: null });
       else if (mode === "config") setCliState({ ...cliState, mode: "priv" });
       else if (mode === "priv") setCliState({ ...cliState, mode: "user" });
       return "";
     }
     if (cmd === "end") {
-      setCliState({ ...cliState, mode: "priv", currentIf: null }); return "";
+      setCliState({ ...cliState, mode: "priv", currentIf: null, currentVlan: null }); return "";
     }
 
     // Comandos de configuração global
@@ -50,29 +130,68 @@ Type 'help' for a list of available commands.
         updateField("hostname", parts[1]);
         return "";
       }
+      if (parts[0] === "vlan" && parts[1]) {
+        let vlans = Array.isArray(data.vlans) ? [...data.vlans] : [{ id: "1", name: "default" }];
+        if (!vlans.find(v => v.id === parts[1])) vlans.push({ id: parts[1], name: `VLAN${parts[1].padStart(4, '0')}` });
+        updateField("vlans", vlans);
+        setCliState({ ...cliState, mode: "config-vlan", currentVlan: parts[1] });
+        return "";
+      }
       if (parts[0] === "interface" && parts[1]) {
         setCliState({ ...cliState, mode: "config-if", currentIf: parts[1] });
         return "";
       }
     }
 
+    // Configuração de VLAN
+    if (mode === "config-vlan" && cliState.currentVlan) {
+      if (parts[0] === "name" && parts[1]) {
+        let vlans = Array.isArray(data.vlans) ? [...data.vlans] : [{ id: "1", name: "default" }];
+        const v = vlans.find(v => v.id === cliState.currentVlan);
+        if (v) v.name = parts[1];
+        updateField("vlans", vlans);
+        return "";
+      }
+    }
+
     // Comandos de configuração de interface
     if (mode === "config-if" && cliState.currentIf) {
-      if (parts[0] === "ip" && parts[1] === "address" && parts[2]) {
-        // Encontra ou cria a interface
+      const getIfaceIdx = () => {
         let ifaces = [...(data.interfaces || [])];
         let idx = ifaces.findIndex((i: any) => i.name === cliState.currentIf);
         if (idx === -1) {
           ifaces.push({ name: cliState.currentIf, ip: "", mode: "access", vlan: "1" });
           idx = ifaces.length - 1;
         }
-        // formato ex: 192.168.1.1 255.255.255.0. No nosso sistema usamos CIDR ou apenas IP
+        return { ifaces, idx };
+      };
+
+      if (parts[0] === "ip" && parts[1] === "address" && parts[2]) {
+        let { ifaces, idx } = getIfaceIdx();
         ifaces[idx].ip = parts[2]; 
         updateField("interfaces", ifaces);
         return "";
       }
       if (parts[0] === "no" && parts[1] === "shutdown") {
-        return ""; // Apenas ignora e da ok no simulador visual
+        return ""; 
+      }
+      if (parts[0] === "switchport" && parts[1] === "mode" && parts[2]) {
+        let { ifaces, idx } = getIfaceIdx();
+        ifaces[idx].mode = parts[2] === "trunk" ? "trunk" : "access";
+        updateField("interfaces", ifaces);
+        return "";
+      }
+      if (parts[0] === "switchport" && parts[1] === "access" && parts[2] === "vlan" && parts[3]) {
+        let { ifaces, idx } = getIfaceIdx();
+        ifaces[idx].vlan = parts[3];
+        updateField("interfaces", ifaces);
+        return "";
+      }
+      if (parts[0] === "switchport" && parts[1] === "trunk" && parts[2] === "allowed" && parts[3] === "vlan" && parts[4]) {
+        let { ifaces, idx } = getIfaceIdx();
+        ifaces[idx].vlan = parts[4]; // Guardamos a lista de vlans permitidas no mesmo campo 'vlan'
+        updateField("interfaces", ifaces);
+        return "";
       }
     }
 
