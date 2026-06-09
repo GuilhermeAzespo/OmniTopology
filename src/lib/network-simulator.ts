@@ -27,7 +27,7 @@ export function simulateDHCP(node: Node, nodes: Node[], edges: Edge[], vlanPath:
     visited.add(currentId);
     
     const current = nodes.find(n => n.id === currentId);
-    if (!current) return;
+    if (!current || current.data.status === "inactive") return;
     
     // É um servidor DHCP?
     if (current.data.dhcpServer && current.data.dhcpNetwork) {
@@ -90,6 +90,8 @@ export function simulatePing(sourceId: string, targetId: string, nodes: Node[], 
   const target = nodes.find(n => n.id === targetId);
   
   if (!source || !target) return { success: false, log: "Nó de origem ou destino não encontrado." };
+  if (source.data.status === "inactive") return { success: false, log: `Origem (${source.data.label}) está inativa.` };
+  if (target.data.status === "inactive") return { success: false, log: `Destino (${target.data.label}) está inativo.` };
   
   // Acha IP da origem
   let sourceIp = source.data.interfaces?.find((i: any) => i.ip)?.ip;
@@ -127,6 +129,7 @@ export function simulatePing(sourceId: string, targetId: string, nodes: Node[], 
     visited.add(currentId);
     
     const current = nodes.find(n => n.id === currentId);
+    if (!current || current.data.status === "inactive") return;
     const connectedEdges = edges.filter(e => e.source === currentId || e.target === currentId);
     
     for (const edge of connectedEdges) {
