@@ -159,7 +159,16 @@ export default function TopologyCanvas({ initialNodes, initialEdges, onSave, onS
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
     <div ref={reactFlowWrapper} style={{ flex: 1, height: "100%", position: "relative" }}>
       <ReactFlow
-        nodes={nodes} edges={edges}
+        nodes={nodes} 
+        edges={edges.map(e => {
+          const sNode = nodes.find(n => n.id === e.source);
+          const tNode = nodes.find(n => n.id === e.target);
+          const isDown = sNode?.data.status === "inactive" || tNode?.data.status === "inactive";
+          if (isDown) {
+            return { ...e, animated: false, style: { ...e.style, stroke: "#ff5f57", opacity: 0.4 } };
+          }
+          return e;
+        })}
         connectionMode={ConnectionMode.Loose}
         onNodesChange={readonly ? undefined : onNodesChange}
         onEdgesChange={readonly ? undefined : onEdgesChange}
