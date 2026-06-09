@@ -26,10 +26,12 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
   const [terminalHistory, setTerminalHistory] = useState<string[]>([]);
   const [terminalInput, setTerminalInput] = useState("");
   const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
+  const [cliState, setCliState] = useState<any>({});
 
   useEffect(() => {
     if (node) {
       setData({ ...node.data });
+      setCliState({});
       const cli = CLI_VENDORS[node.data.cliVendor || "generic"];
       setTerminalHistory([cli?.welcome || "", ""]);
       setTab("info");
@@ -48,11 +50,29 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
     setTerminalInput("");
     const cli = CLI_VENDORS[data.cliVendor || "generic"];
     if (!cli) return;
-    const prompt = `${data.hostname || "device"}${cli.prompt}`;
+    
+    const promptStr = typeof cli.prompt === "function" ? cli.prompt(cliState) : (cli.prompt || "$ ");
+    const computedPrompt = `${data.hostname || "device"}${promptStr}`;
+    
     if (cmd === "clear") { setTerminalHistory([cli.welcome || ""]); return; }
-    const handler = cli.commands[cmd];
-    const output = handler ? handler(cmd.split(" "), data) : `bash: ${cmd}: command not found`;
-    setTerminalHistory(h => [...h, `${prompt}${cmd}`, output]);
+    
+    let output = "";
+    let handled = false;
+    
+    if (cli.parseCommand) {
+      const res = cli.parseCommand(cmd, data, cliState, setCliState, updateField);
+      if (res !== null) {
+        output = res;
+        handled = true;
+      }
+    }
+    
+    if (!handled) {
+      const handler = cli.commands[cmd];
+      output = handler ? handler(cmd.split(" "), data, cliState, setCliState, updateField) : `bash: ${cmd}: command not found`;
+    }
+    
+    setTerminalHistory(h => [...h, `${computedPrompt}${cmd}`, ...(output ? [output] : [])]);
   }
 
   function updateInterface(idx: number, field: string, value: string) {
@@ -73,6 +93,8 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
   }
 
   const cli = CLI_VENDORS[data.cliVendor || "generic"];
+  const promptStr = typeof cli?.prompt === "function" ? cli.prompt(cliState) : (cli?.prompt || "$ ");
+  const computedPrompt = `${data.hostname || "device"}${promptStr}`;
 
   return (
     <div className="properties-panel">
@@ -201,7 +223,7 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
                 <div key={i} className="terminal-output" style={{ color: line.startsWith(data.hostname) ? "#06b6d4" : "#d4d4d4" }}>{line}</div>
               ))}
               <div className="terminal-input-row">
-                <span className="terminal-prompt">{data.hostname || "device"}{cli?.prompt || "$ "}</span>
+                <span className="terminal-prompt">{computedPrompt}</span>
                 <input className="terminal-input" value={terminalInput} onChange={e => setTerminalInput(e.target.value)}
                   onKeyDown={handleTerminalCommand} placeholder="Digite um comando..." autoComplete="off" spellCheck={false} />
               </div>
@@ -221,7 +243,7 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
         {tab === "view" && (
           <div>
             {data.category === "endpoint" ? (
-              <DesktopView nodeId={node.id} nodes={nodes} edges={edges} />
+              <DesktopView nodeId={node.id} nodes={nodes} edges={edges} onOpenTerminal={() => setIsTerminalMaximized(true)} />
             ) : (
               <SwitchPanel nodeId={node.id} data={data} edges={edges} />
             )}
@@ -233,6 +255,7 @@ export default function PropertiesPanel({ node, nodes = [], edges = [], onUpdate
         <TerminalModal
           data={data}
           cli={cli}
+          computedPrompt={computedPrompt}
           history={terminalHistory}
           input={terminalInput}
           onInputChange={setTerminalInput}
