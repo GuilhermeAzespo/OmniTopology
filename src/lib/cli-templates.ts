@@ -61,7 +61,40 @@ Type 'help' for a list of available commands.
       }
     }
 
+    // Atalhos (wr)
+    if (processCmd === "write memory" || processCmd === "wr") {
+      return "Building configuration...\n[OK]";
+    }
+
+    if (processCmd === "copy running-config startup-config" || processCmd === "copy run start") {
+      return "Destination filename [startup-config]?\nBuilding configuration...\n[OK]";
+    }
+
+    if (processCmd === "reload") {
+      return "Proceed with reload? [confirm]\n\n*Mar 1 00:00:00.000: %SYS-5-RELOAD: Reload requested by console. Reload Reason: Reload Command.";
+    }
+
+    if (processCmd === "write erase") {
+      return "Erasing the nvram filesystem will remove all configuration files! Continue? [confirm]\n[OK]\nErase of nvram: complete";
+    }
+
     // Interceptando shows dinâmicos (que precisam ler a rede)
+    if (processCmd === "show cdp neighbors") {
+      let out = "Capability Codes: R - Router, T - Trans Bridge, B - Source Route Bridge\n                  S - Switch, H - Host, I - IGMP, r - Repeater, P - Phone, \n                  D - Remote, C - CVTA, M - Two-port Mac Relay\n\nDevice ID        Local Intrfce     Holdtme    Capability  Platform  Port ID\n";
+      const myEdges = edges.filter(e => e.source === data.id || e.target === data.id);
+      myEdges.forEach((e: any) => {
+        const otherNodeId = e.source === data.id ? e.target : e.source;
+        const otherNode = nodes.find(n => n.id === otherNodeId);
+        const myPort = e.source === data.id ? e.data.sourcePort : e.data.targetPort;
+        const otherPort = e.source === data.id ? e.data.targetPort : e.data.sourcePort;
+        if (otherNode) {
+          const cap = otherNode.data.category === "switch" ? "S" : (otherNode.data.category === "router" ? "R" : "H");
+          out += `${(otherNode.data.hostname || otherNode.id).substring(0,15).padEnd(16)} ${myPort.padEnd(17)} 120        ${cap.padEnd(11)} ${otherNode.data.category.substring(0,9).padEnd(9)} ${otherPort}\n`;
+        }
+      });
+      return out;
+    }
+
     if (processCmd === "show mac address-table" || processCmd === "show mac-address-table") {
       let out = "          Mac Address Table\n-------------------------------------------\nVlan    Mac Address       Type        Ports\n----    -----------       --------    -----\n";
       const myEdges = edges.filter(e => e.source === data.id || e.target === data.id);
@@ -129,6 +162,19 @@ Type 'help' for a list of available commands.
     if (mode === "config") {
       if (parts[0] === "hostname" && parts[1]) {
         updateField("hostname", parts.slice(1).join(" "));
+        return "";
+      }
+      if (parts[0] === "enable" && parts[1] === "secret" && parts[2]) {
+        updateField("enableSecret", parts[2]);
+        return "";
+      }
+      if (parts[0] === "banner" && parts[1] === "motd" && parts[2]) {
+        const bannerText = parts.slice(2).join(" ").replace(/#/g, "");
+        updateField("bannerMotd", bannerText);
+        return "";
+      }
+      if (parts[0] === "ip" && parts[1] === "default-gateway" && parts[2]) {
+        updateField("defaultGateway", parts[2]);
         return "";
       }
       if (parts[0] === "vlan" && parts[1]) {
@@ -205,11 +251,22 @@ Available commands:
   show version         - Display IOS version information
   show ip interface brief - Show interface summary
   show running-config  - Display running configuration
+  show startup-config  - Display startup configuration
   show ip route        - Display routing table
+  show cdp neighbors   - Show connected Cisco devices
+  show interfaces status - Show interface status
+  show vlan brief      - Show VLANs
   configure terminal   - Enter configuration terminal
   interface [name]     - Enter interface configuration
-  ip address [ip] [mask] - Set interface IP
+  ip address [ip] [msk]- Set interface IP
+  ip default-gateway   - Set default gateway
   hostname [name]      - Set device hostname
+  enable secret [pass] - Set enable password
+  banner motd #[txt]#  - Set MOTD banner
+  write memory / wr    - Save configuration to NVRAM
+  copy run start       - Save configuration to NVRAM
+  reload               - Restart the switch
+  write erase          - Erase configuration
   exit                 - Exit current mode
   clear                - Clear terminal
 `,
@@ -220,6 +277,7 @@ Uptime: 1 day, 2 hours, 30 minutes
 Processor: Cisco RISC Processor rev 1
 Memory: 512K bytes of non-volatile configuration memory
 Flash: 256M bytes total`,
+    "show startup-config": (_, d) => CISCO_CLI.commands["show running-config"]([], d),
     "show ip interface brief": (_, d) => {
       const ifaces = d?.interfaces || [];
       let out = "\nInterface              IP-Address      OK? Method Status    Protocol\n";
