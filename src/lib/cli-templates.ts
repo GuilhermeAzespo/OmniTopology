@@ -279,6 +279,128 @@ Total Physical Memory:     4,096 MB`,
   },
 };
 
+export const ARUBA_CLI: CliTemplate = {
+  welcome: `
+ArubaOS-Switch
+Copyright (C) 1991-2022 Hewlett Packard Enterprise Development LP
+RESTRICTED RIGHTS LEGEND
+`,
+  prompt: "# ",
+  commands: {
+    help: () => `
+Available commands:
+  show vlans           - Show VLAN information
+  show interfaces brief - Show interface summary
+  show run             - Show running configuration
+  config t             - Enter configuration terminal
+  clear                - Clear screen`,
+    "show vlans": () => `
+ Status and Counters - VLAN Information
+  Maximum VLANs to support : 256
+  Primary VLAN : DEFAULT_VLAN
+  Management VLAN :
+ 
+  VLAN ID Name                 | Status     Voice Jumbo
+  ------- -------------------- + ---------- ----- -----
+  1       DEFAULT_VLAN         | Port-based No    No 
+  10      LAN_ADMIN            | Port-based No    No 
+`,
+    "show interfaces brief": (_, d) => {
+      const ifaces = d?.interfaces || [];
+      let out = "\nStatus and Counters - Port Status\n\n  Port    Type      | Alert   Enabled  Status      Mode        MDIX\n  ------- --------- + ------- -------- ----------- ----------- -------\n";
+      ifaces.forEach((i: any) => {
+        out += `  ${i.name.padEnd(7)} 1000T     | No      Yes      ${(i.status || "Up").padEnd(11)} 1000FDx     Auto\n`;
+      });
+      return out;
+    },
+    "show run": (_, d) => `
+Running configuration:
+ 
+; J9776A Configuration Editor; Created on release #YA.16.10.0019
+; hostname : ${hostname(d)}
+ 
+hostname "${hostname(d)}"
+snmp-server community "public" unrestricted
+vlan 1
+   name "DEFAULT_VLAN"
+   untagged 1-24
+   ip address dhcp-bootp
+   exit
+`,
+  },
+};
+
+export const INTELBRAS_CLI: CliTemplate = {
+  welcome: `
+===============================================================
+Intelbras Datacom Switch - Sistema Operacional de Redes
+Copyright (c) 2004-2023 Intelbras S/A. Todos os direitos reservados.
+===============================================================
+`,
+  prompt: "> ",
+  commands: {
+    help: () => `
+Comandos disponíveis:
+  display interface brief - Exibe o status das interfaces
+  display vlan            - Exibe a lista de VLANs
+  display current-config  - Exibe a configuracao atual
+  system-view             - Entra no modo de configuracao global
+  clear                   - Limpa a tela`,
+    "display interface brief": (_, d) => {
+      const ifaces = d?.interfaces || [];
+      let out = "\nBrief information on interface(s) under route mode:\nLink: ADM - administratively down; Stby - standby\nProtocol: (s) - spoofing\nInterface            Link Protocol Main IP         Description\n";
+      ifaces.forEach((i: any) => {
+        out += `${i.name.padEnd(20)} UP   UP       ${(i.ip || "--").padEnd(15)} \n`;
+      });
+      return out;
+    },
+    "display vlan": () => `
+ Total VLANs: 1
+ The VLANs include:
+ 1(default)
+`,
+    "display current-config": (_, d) => `
+#
+ sysname ${hostname(d)}
+#
+vlan batch 1
+#
+`,
+  },
+};
+
+export const JUNIPER_CLI: CliTemplate = {
+  welcome: `
+--- JUNOS 21.4R1.12 built 2022-01-14 20:01:03 UTC
+`,
+  prompt: "> ",
+  commands: {
+    "?": () => `
+Possible completions:
+  clear                Clear information in the system
+  configure            Manipulate software configuration information
+  show                 Show system information
+  ping                 Ping remote target
+  quit                 Exit the management session`,
+    "show interfaces terse": (_, d) => {
+      const ifaces = d?.interfaces || [];
+      let out = "\nInterface               Admin Link Proto    Local                 Remote\n";
+      ifaces.forEach((i: any) => {
+        out += `${i.name.padEnd(23)} up    up\n`;
+        if (i.ip) out += `                                inet     ${i.ip}\n`;
+      });
+      return out;
+    },
+    "show route": () => `
+inet.0: 3 destinations, 3 routes (3 active, 0 holddown, 0 hidden)
++ = Active Route, - = Last Active, * = Both
+
+0.0.0.0/0          *[Static/5] 2w1d 10:15:33
+                    > to 192.168.1.1 via ge-0/0/0.0
+`,
+  },
+};
+
 export const CLI_VENDORS: Record<string, CliTemplate> = {
   cisco: CISCO_CLI,
   mikrotik: MIKROTIK_CLI,
@@ -286,8 +408,10 @@ export const CLI_VENDORS: Record<string, CliTemplate> = {
   opnsense: PFSENSE_CLI,
   linux: LINUX_CLI,
   windows: WINDOWS_CLI,
+  aruba: ARUBA_CLI,
+  intelbras: INTELBRAS_CLI,
+  juniper: JUNIPER_CLI,
   generic: LINUX_CLI,
-  aruba: CISCO_CLI, // fallback
   ubiquiti: LINUX_CLI, // fallback
   fortigate: CISCO_CLI, // fallback
 };
