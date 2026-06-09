@@ -19,6 +19,7 @@ Type 'help' for a list of available commands.
     if (s?.mode === "priv") return "# ";
     if (s?.mode === "config") return "(config)# ";
     if (s?.mode === "config-if") return "(config-if)# ";
+    if (s?.mode === "config-vlan") return "(config-vlan)# ";
     return "> ";
   },
   parseCommand: (cmd, data, cliState, setCliState, updateField, nodes = [], edges = []) => {
